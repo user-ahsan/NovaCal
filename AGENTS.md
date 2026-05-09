@@ -485,7 +485,8 @@ NODE_ENV=production
 When a new AI agent (Cursor, Claude, OpenCode) joins this project, it must:
 
 1. [ ] Read `AGENTS.md` completely (this file)
-2. [ ] Read `docs/09-master-technical-specification.md` for project overview
+2. [ ] Read `agent-mistakes.md` completely — learn from previous mistakes BEFORE coding
+3. [ ] Read `docs/09-master-technical-specification.md` for project overview
 3. [ ] Read `docs/01-database-schema.md` before any database work
 4. [ ] Read `docs/05-route-map-web-mobile.md` before any routing work
 5. [ ] Read `docs/02-component-library-global-constants.md` before any UI work

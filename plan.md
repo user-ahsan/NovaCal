@@ -177,7 +177,7 @@ MASTER ORCHESTRATOR (supervisor)
 
 **Parallel batch: 10 agents start simultaneously**
 **Output: Auth, API routes, WebSocket, MCP, UI components, mobile components**
-**⚠️ Mistake prevention:** ALL agents in this sprint must read `agent-mistakes.md` first. Key M-codes to avoid: M-001 (verify `@types/*` necessity), M-002 (no `src/` subdirectory assumption), M-003 (exclude mobile-only from shared barrel), M-004 (omit `version` from compose.yml), M-005 (add `types: ["node"]`), M-006 (add `ignoreDeprecations: "6.0"` for TypeScript 6.x)
+**⚠️ Mistake prevention:** ALL agents in this sprint must read `agent-mistakes.md` first. Key M-codes to avoid: M-001 (verify `@types/*` necessity), M-002 (no `src/` subdirectory assumption), M-003 (exclude mobile-only from shared barrel), M-004 (omit `version` from compose.yml), M-005 (add `types: ["node"]`), M-006 (add `ignoreDeprecations: "6.0"` for TypeScript 6.x), M-009/M-024 (APP packages must have ALL deps declared — no relying on hoisting), M-011 (sub-package tsconfigs need `rootDir: "../../"` for cross-package imports), M-022 (every tsconfig must define its own `@novacal/*` paths — `extends` doesn't inherit them)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -504,6 +504,8 @@ MASTER ORCHESTRATOR (supervisor)
 ---
 
 ### Agent A13 — MCP Server Engineer
+
+**⚠️ Previous mistakes to avoid:** M-006/M-010 (ALL tsconfigs need `ignoreDeprecations: "6.0"`), M-011 (no `outDir`/wrong `rootDir` — use `noEmit: true` and `rootDir: "../../"`), M-012 (`$inferSelect` doesn't match projected queries — use explicit types for lambda params), M-013 (`.returning()` can be empty — use `!` assertions), M-022 (EVERY tsconfig must define its own `@novacal/*` paths)
 
 **Pre-launch requirements:**
 - [ ] Read Doc 04 (100% — ALL 8 tool schemas, SSE transport, auth, RBAC, rate limiting, session TTL, audit logging, ListResourcesRequestSchema, progressive discovery)
