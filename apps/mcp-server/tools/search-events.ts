@@ -54,7 +54,7 @@ export async function handleSearchEvents(
       conditions.push(
         inArray(
           events.calendarId,
-          workspaceCalendars.map((c) => c.id),
+          workspaceCalendars.map((c: { id: string }) => c.id),
         ),
       );
     }
@@ -77,7 +77,7 @@ export async function handleSearchEvents(
     .limit(params.limit);
 
   const response = {
-    results: results.map((r) => ({
+    results: results.map((r: { id: string; title: string; snippet: unknown; startTime: Date; endTime: Date }) => ({
       id: r.id,
       title: r.title,
       snippet: r.snippet,

@@ -94,7 +94,7 @@ export async function handleUpdateEvent(
       content: [
         {
           type: "text" as const,
-          text: `✅ Single-instance override created for recurring event "${override.title}" (${override.startTime.toISOString()})`,
+            text: `✅ Single-instance override created for recurring event "${override!.title}" (${override!.startTime.toISOString()})`,
         },
         {
           type: "text" as const,
@@ -115,7 +115,7 @@ export async function handleUpdateEvent(
     content: [
       {
         type: "text" as const,
-        text: `✅ Event updated: "${updated.title}"`,
+        text: `✅ Event updated: "${updated!.title}"`,
       },
       {
         type: "text" as const,

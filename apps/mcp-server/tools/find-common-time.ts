@@ -156,7 +156,7 @@ export async function handleFindCommonTime(
     );
 
   // Build busy blocks
-  const busyBlocks: BusyBlock[] = allEvents.map((e) => ({
+  const busyBlocks: BusyBlock[] = allEvents.map((e: typeof events.$inferSelect) => ({
     start: new Date(e.startTime),
     end: new Date(e.endTime),
   }));

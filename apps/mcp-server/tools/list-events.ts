@@ -66,7 +66,7 @@ export async function handleListEvents(
     conditions.push(
       inArray(
         events.calendarId,
-        workspaceCalendars.map((c) => c.id),
+        workspaceCalendars.map((c: { id: string }) => c.id),
       ),
     );
   }

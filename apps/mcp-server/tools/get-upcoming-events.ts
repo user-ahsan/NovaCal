@@ -57,17 +57,17 @@ export async function handleGetUpcomingEvents(
           text: JSON.stringify(
             { events: [], summary: "No events upcoming." },
             null,
-            2,
+            2
           ),
-        ],
-      },
-    ];
+        },
+      ],
+    };
   }
 
   conditions.push(
     inArray(
       events.calendarId,
-      workspaceCalendars.map((c) => c.id),
+      workspaceCalendars.map((c: { id: string }) => c.id),
     ),
   );
 
@@ -105,7 +105,7 @@ export async function handleGetUpcomingEvents(
 
   const summary = Object.entries(groupedByDay)
     .map(([day, dayEvents]) => {
-      const lines = dayEvents
+      const lines = (dayEvents as typeof events.$inferSelect[])
         .map(
           (e) =>
             `  • ${e.startTime.toISOString().slice(11, 16)} — ${e.endTime.toISOString().slice(11, 16)}: ${e.title}`,

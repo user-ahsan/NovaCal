@@ -4,8 +4,19 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "outDir": "./dist",
-    "types": ["node"]
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "noEmit": true,
+    "rootDir": "../../",
+    "baseUrl": ".",
+    "paths": {
+      "@novacal/shared": ["../../packages/shared"],
+      "@novacal/shared/*": ["../../packages/shared/*"],
+      "@novacal/db": ["../../packages/db"],
+      "@novacal/db/*": ["../../packages/db/*"],
+      "@novacal/auth": ["../../packages/auth"],
+      "@novacal/auth/*": ["../../packages/auth/*"]
+    }
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules", "dist"]

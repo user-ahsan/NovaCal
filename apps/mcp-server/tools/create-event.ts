@@ -65,7 +65,7 @@ async function getOrCreateDefaultCalendar(
     })
     .returning();
 
-  return newCal.id;
+  return newCal!.id;
 }
 
 // ─── Handler ───
@@ -119,8 +119,8 @@ export async function handleCreateEvent(
 
     if (attendeeRecords.length > 0) {
       await db.insert(eventAttendees).values(
-        attendeeRecords.map((a) => ({
-          eventId: event.id,
+        attendeeRecords.map((a: { id: string; email: string }) => ({
+          eventId: event!.id,
           userId: a.id,
           email: a.email,
           rsvpStatus: "PENDING",
@@ -130,16 +130,16 @@ export async function handleCreateEvent(
   }
 
   const response: Record<string, unknown> = {
-    id: event.id,
-    title: event.title,
-    startTime: event.startTime,
-    endTime: event.endTime,
+    id: event!.id,
+    title: event!.title,
+    startTime: event!.startTime,
+    endTime: event!.endTime,
   };
 
   const content: { type: "text"; text: string }[] = [
     {
       type: "text",
-      text: `✅ Event created: "${event.title}" (${event.startTime.toISOString()} — ${event.endTime.toISOString()})`,
+      text: `✅ Event created: "${event!.title}" (${event!.startTime.toISOString()} — ${event!.endTime.toISOString()})`,
     },
     {
       type: "text",
@@ -150,7 +150,7 @@ export async function handleCreateEvent(
   if (conflicts.length > 0) {
     content.push({
       type: "text",
-      text: `⚠️ Conflict detected with ${conflicts.length} existing event(s): ${conflicts.map((c) => c.title).join(", ")}`,
+      text: `⚠️ Conflict detected with ${conflicts.length} existing event(s): ${conflicts.map((c: { title: string }) => c.title).join(", ")}`,
     });
   }
 

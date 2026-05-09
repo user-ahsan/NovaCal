@@ -56,7 +56,7 @@ export async function handleGetAvailability(
 
   if (isFreeBusy) {
     // Return only "Busy" blocks — no titles or details
-    const busyBlocks = userEvents.map((e) => ({
+    const busyBlocks = userEvents.map((e: { startTime: Date; endTime: Date }) => ({
       start: e.startTime,
       end: e.endTime,
       status: "Busy" as const,
