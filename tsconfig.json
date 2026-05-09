@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "ignoreDeprecations": "6.0",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@novacal/shared": ["./packages/shared"],
+      "@novacal/shared/*": ["./packages/shared/*"],
+      "@novacal/db": ["./packages/db"],
+      "@novacal/db/*": ["./packages/db/*"],
+      "@novacal/auth": ["./packages/auth"],
+      "@novacal/auth/*": ["./packages/auth/*"],
+      "@novacal/ui": ["./packages/ui"],
+      "@novacal/ui/*": ["./packages/ui/*"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    ".next",
+    "dist",
+    "apps/mobile",
+    "**/*.mobile.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}

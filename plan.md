@@ -3,6 +3,7 @@
 > **Scope:** Full production-grade calendar platform from spec docs
 > **Agents:** 25 specialized agents across 5 sprints
 > **Quality:** Final-grade. No stubs. No v1. Everything working.
+> **⚠️ Mistake Prevention:** Every agent MUST read `agent-mistakes.md` before launching. The `Pre-launch requirements` section for each agent includes M-code references to avoid repeating past mistakes.
 
 ---
 
@@ -176,6 +177,7 @@ MASTER ORCHESTRATOR (supervisor)
 
 **Parallel batch: 10 agents start simultaneously**
 **Output: Auth, API routes, WebSocket, MCP, UI components, mobile components**
+**⚠️ Mistake prevention:** ALL agents in this sprint must read `agent-mistakes.md` first. Key M-codes to avoid: M-001 (verify `@types/*` necessity), M-002 (no `src/` subdirectory assumption), M-003 (exclude mobile-only from shared barrel), M-004 (omit `version` from compose.yml), M-005 (add `types: ["node"]`), M-006 (add `ignoreDeprecations: "6.0"` for TypeScript 6.x)
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -195,6 +197,8 @@ MASTER ORCHESTRATOR (supervisor)
 ---
 
 ### Agent A04 — Auth Engineer
+
+**⚠️ Previous mistakes to avoid:** M-002 (path alias structure), M-005 (missing node types), M-006 (TypeScript 6.x deprecation flags)
 
 **Pre-launch requirements:**
 - [ ] Read Doc 09 Section 2A (identity management: Better Auth, Redis sessions, no OAuth)
@@ -220,6 +224,8 @@ MASTER ORCHESTRATOR (supervisor)
 ---
 
 ### Agent A05 — UI Component Engineer
+
+**⚠️ Previous mistakes to avoid:** M-003 (no mobile-only imports in shared barrel exports), M-006 (TypeScript 6.x flags)
 
 **Pre-launch requirements:**
 - [ ] Read Doc 02 Section 2 (ALL 17 shadcn components, exact usage table, styling override specs)
@@ -263,6 +269,8 @@ MASTER ORCHESTRATOR (supervisor)
 ---
 
 ### Agent A06 — Bespoke Web Component Engineer
+
+**⚠️ Previous mistakes to avoid:** M-006 (TS config flags)
 
 **Pre-launch requirements:**
 - [ ] Read Doc 02 Section 3A (GridCanvas architecture notes: pixel calc, overlap detection, 15-min snap. EventBlock: layoutId, drag props, left border styling. TimeLineIndicator: 2s opacity pulse. MagneticButton: pointer-tracking glow. FloatingLabelInput: float on focus. GhostSlot: faded dashed border. CodeBlockCopy: copy-to-clipboard, animated icon swap)
@@ -319,6 +327,8 @@ MASTER ORCHESTRATOR (supervisor)
 ---
 
 ### Agent A08 — Auth API Engineer
+
+**⚠️ Previous mistakes to avoid:** M-001 (verify package types before adding @types/* deps), M-005 (include types: ["node"] for Node.js globals)
 
 **Pre-launch requirements:**
 - [ ] Read Doc 03 Section 1 (ALL 7 auth endpoints: register, login, qr/init, qr/approve, logout, sessions, sessions/:id — exact request/response JSON schemas, error codes, rate limits 10 req/min)

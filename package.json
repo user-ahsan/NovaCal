@@ -1,0 +1,26 @@
+{
+  "name": "novacal",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/shared",
+    "packages/db",
+    "packages/auth",
+    "packages/ui",
+    "apps/web",
+    "apps/realtime",
+    "apps/mcp-server"
+  ],
+  "scripts": {
+    "typecheck": "bun run --bun tsc --noEmit",
+    "lint": "bun run eslint . --ext .ts,.tsx",
+    "dev": "bun run --cwd apps/web dev"
+  },
+  "dependencies": {
+    "typescript": "latest",
+    "@types/node": "latest",
+    "bun-types": "latest"
+  },
+  "packageManager": "bun"
+}

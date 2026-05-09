@@ -1,0 +1,15 @@
+{
+  "name": "@novacal/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./constants/animation": "./constants/animation.ts",
+    "./constants/animation.mobile": "./constants/animation.mobile.ts",
+    "./constants/system": "./constants/system.ts",
+    "./types": "./types/index.ts"
+  }
+}

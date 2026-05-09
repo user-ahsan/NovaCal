@@ -3,6 +3,8 @@
 > **Recognized by:** Cursor, Claude Code, OpenCode, Copilot, and all standard AI coding agents.
 > **Purpose:** Definitive single source of truth for the NovaCal project. Every agent MUST read this file before executing any task.
 > **Philosophy:** Zero hallucinations. Zero rogue file creation. One way to do everything. Documentation-driven development.
+> 
+> **⚠️ MISTAKE TRACKING:** Every agent MUST also read `agent-mistakes.md` before executing. This file tracks all agentic mistakes, their fixes, and lessons learned. Agents are expected to reference M-codes from that file to avoid repeating errors.
 
 ---
 

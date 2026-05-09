@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NovaCal — Docker Compose
+# Orchestrates 4 containers: web, realtime, postgres, redis
+# Deployment target: Dokploy on self-hosted VPS
+#
+# Dokploy Ingress Mapping:
+#   calendar.yourdomain.com  →  novacal-web:3000       (HTTPS - REST + pages)
+#   ws.yourdomain.com        →  novacal-realtime:3001   (WSS  - WebSocket + SSE)
+#
+# Cloudflare Tunnel Compatibility:
+#   Both web and realtime services support X-Forwarded-For / X-Forwarded-Proto
+#   header trust via the TRUST_PROXY environment variable.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Web App (Next.js 15 + REST API) ──────────────────────────────────────
+  novacal-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3000:3000" # Next.js pages + REST API
+    env_file: ../.env
+    depends_on:
+      novacal-db:
+        condition: service_healthy
+      novacal-redis:
+        condition: service_started
+    networks:
+      - novacal-net
+    restart: unless-stopped
+
+  # ── Real-time Server (WebSocket UI + SSE MCP) ────────────────────────────
+  novacal-realtime:
+    build:
+      context: ..
+      dockerfile: docker/realtime.Dockerfile
+    ports:
+      - "3001:3001" # WebSockets (UI) + SSE (MCP)
+    env_file: ../.env
+    depends_on:
+      - novacal-redis
+    networks:
+      - novacal-net
+    restart: unless-stopped
+
+  # ── PostgreSQL 16 ─────────────────────────────────────────────────────────
+  # Internal only. No external port exposure.
+  novacal-db:
+    image: postgres:16-alpine
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U novacal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    env_file: ../.env
+    networks:
+      - novacal-net
+    restart: unless-stopped
+
+  # ── Redis 7 ───────────────────────────────────────────────────────────────
+  # Internal only. No external port exposure.
+  # Used for: Better Auth sessions, WebSocket Pub/Sub, rate limiting, QR challenges
+  novacal-redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - novacal-net
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  novacal-net:
+    driver: bridge
