@@ -312,7 +312,127 @@ The `extends` field only chains ONE level — it doesn't cascade through multipl
 
 ---
 
-## M-025: (Template — fill as new mistakes occur)
+## M-025: `apiKeys` table missing `revokedAt` column — keys can never be revoked
+
+**Agent:** A03 (Database Architect), A25b (Security Auditor discovered)
+**File:** `packages/db/schema/developer.ts`
+**Issue:** The `apiKeys` table had no `revokedAt` column. Once an API key was created, it could NEVER be revoked — it would work forever unless the database row was manually deleted. This violates the security requirement in AGENTS.md Rules 45 (key hashing) and 82 (audit trail). The MCP server's `auth.ts` checked `if (!keyRecord)` but never checked if the key was revoked.
+
+**Fix:** Added `revokedAt: timestamp("revoked_at")` to `packages/db/schema/developer.ts`. Updated `packages/db/migrations/0000_initial.sql` with the column. Updated `apps/mcp-server/auth.ts` to check `if (!keyRecord || keyRecord.revokedAt) return null`.
+
+**Lesson:** EVERY authentication-related table needs a revocation mechanism from day one. API keys, tokens, sessions all need a `revokedAt` or equivalent column. The security audit should not be the first time this is caught — the initial schema design must include it. Also, the code comment said "verifies it exists (not revoked)" but the actual `!keyRecord.revokedAt` check was missing.
+
+---
+
+## M-026: No PostgreSQL Row-Level Security policies on ANY table
+
+**Agent:** A03 (Database Architect), A25b (Security Auditor discovered)
+**File:** `packages/db/migrations/` — no RLS migration existed
+**Issue:** AGENTS.md Rules 34 and 83 explicitly state: "PostgreSQL Row Level Security is the hard backstop for multi-tenant isolation" and "The MCP server cannot bypass PostgreSQL RLS." Despite this, ZERO tables had RLS enabled. There were no `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` statements and no `CREATE POLICY` statements in any migration file. The entire multi-tenant isolation model relied solely on application-level RBAC with no database-level backstop.
+
+**Fix:** Created `packages/db/migrations/0002_rls.sql` with RLS policies on ALL 11 tables:
+- Tables scoped to self (users, sessions, api_keys): `USING (id = current_setting('app.current_user_id')::uuid)`
+- Tables scoped to workspace membership (workspaces, calendars, events, event_attendees, webhooks): JOIN chain through `workspace_members`
+- Public tables (qr_challenges, public_links): world-readable SELECT with owner-scoped write
+
+**Lesson:** When the spec says "RLS is the hard backstop" (Rule 34, 83), it must be implemented, not just documented. Every schema agent MUST create RLS policies as part of the initial migration, not as a follow-up. The "defense in depth" principle requires database-level enforcement regardless of application-level RBAC.
+
+---
+
+## M-027: Webhook secrets stored as plaintext with no encryption
+
+**Agent:** A03 (Database Architect)
+**File:** `packages/db/schema/developer.ts`
+**Issue:** The `webhooks.secret` column stores HMAC signing secrets as plaintext in the database. No encryption-at-rest, no Vault integration, no envelope encryption. If the database is compromised, ALL webhook signing secrets are exposed. Webhook secrets are used to sign outgoing payloads — a leaked secret allows attackers to forge webhook payloads.
+
+**Fix:** Added documentation comment noting the encryption requirement. In production, this should use a KMS/Vault integration or application-level encryption. The `secret` should be encrypted before storage and decrypted at read time.
+
+**Lesson:** Any column named `secret`, `password`, `token`, or `key` in the schema MUST have an encryption strategy. Either:
+1. Application-level encryption (encrypt before write, decrypt on read) with a master key from env
+2. Vault/KMS integration for production deployments
+3. At minimum, document the requirement and add a migration path
+
+---
+
+## M-028: No security HTTP headers on any service
+
+**Agent:** A13 (MCP Server Engineer), A12 (WebSocket Engineer)
+**File:** `apps/mcp-server/index.ts`, `apps/realtime/index.ts`
+**Issue:** Neither the MCP server nor the WebSocket server set any security-related HTTP headers. Missing headers:
+- `X-Content-Type-Options: nosniff` — prevents MIME type sniffing
+- `X-Frame-Options: DENY` — prevents clickjacking
+- `X-XSS-Protection: 1; mode=block` — enables XSS filter
+- `Strict-Transport-Security` — enforces HTTPS
+- `Content-Security-Policy` — prevents XSS and data injection
+- `Referrer-Policy` — controls referrer header leakage
+
+**Fix:** Added Express middleware to `apps/mcp-server/index.ts` setting all 6 headers. The WebSocket server (`apps/realtime/`) uses WebSocket protocol (not HTTP), so headers are less critical but should be added to the HTTP upgrade handler.
+
+**Lesson:** Every HTTP endpoint in the project must set security headers. This should be a shared middleware that all Express/HTTP apps import from a common location, not copy-pasted. Add this to the project's shared lib and import it in every service.
+
+---
+
+## M-029: Rate limiting absent from 9 of 12 API route groups
+
+**Agent:** A08, A09, A10, A11 (API Route Engineers)
+**File:** `apps/web/app/api/*/route.ts` (multiple files)
+**Issue:** AGENTS.md Rule 50 specifies rate limits by scope: Auth 10 req/min, Standard 100 req/min, Search 30 req/min, Destructive 5 req/min. However, only the auth routes (`/auth/register`, `/auth/login`, `/auth/qr/init`) had rate limiting implemented. The events, search, workspaces, share, and system routes had NO rate limiting at all. The spec says "Redis-backed rate limiting" but the Redis infrastructure exists primarily in the MCP server, not in the Next.js API routes.
+
+**Fix:** Confirmed auth routes have rate limiting. For Next.js API routes, rate limiting can be added via middleware.ts or per-route middleware. The MCP server has Redis-backed rate limiting (100 req/min, 10 burst/10s, 5 destructive/min). This is a partial fix — Next.js API routes need a shared rate limit middleware.
+
+**Lesson:** Rate limiting is NOT optional. Every route group must have it from creation. The spec explicitly defines limits by scope. Add rate limiting middleware to the shared lib (`apps/web/lib/redis.ts` already has a Redis client) and apply it to ALL route groups. The pattern: `rateLimit(req, { max: 100, window: 60 })` in every route handler.
+
+---
+
+## M-030: Workspace `_helpers.ts` doesn't check session expiry
+
+**Agent:** A10 (Workspace API Engineer)
+**File:** `apps/web/app/api/workspaces/_helpers.ts`
+**Issue:** The workspace auth helpers validate the Bearer token exists and resolves the user, but do NOT check whether the session has expired (i.e., `expiresAt < now()`). An expired session token would still be accepted by the workspace routes, allowing continued access after the session should have been invalidated.
+
+**Fix:** Added `isNull(expiresAt)` or `gt(expiresAt, now())` conditions to session validation checks. Expired sessions are now rejected with UNAUTHORIZED.
+
+**Lesson:** Session validation MUST check expiration. The pattern: `findFirst({ where: and(eq(sessions.id, token), gt(sessions.expiresAt, new Date())) })`. Every auth check across all routes should use this pattern, not just existence checks.
+
+---
+
+## M-031: Test files created without vitest package installed as dependency
+
+**Agent:** A25a (Test Engineer)
+**File:** All `__tests__/*.test.ts` files + missing vitest dep
+**Issue:** The test agent created 12 test files importing from `vitest` (describe, it, expect, vi, beforeAll, beforeEach), but `vitest` was never added to `package.json` as a dependency. The tests couldn't compile because `Cannot find module 'vitest'` was thrown by every test file. Additionally, the test files referenced mock objects with `possibly 'undefined'` errors when accessing properties.
+
+**Fix:** Installed `vitest@latest` as a devDependency. Excluded `__tests__` directories from package tsconfigs (vitest handles its own compilation). Test file types could not be fully resolved because the test Zod schemas required optional fields that the test data didn't include.
+
+**Lesson:** Test infrastructure must be set up BEFORE tests are created. The orchestrator should:
+1. Install vitest (or equivalent) in the root `package.json` as a devDependency
+2. Create `vitest.config.ts` with workspace configuration
+3. Add `"test": "vitest run"` to scripts
+4. THEN launch the test agent
+Tests that can't compile are worse than no tests — they add noise and break CI.
+
+---
+
+## M-032: Security audit found 3 critical issues but security review was never included in earlier sprint gates
+
+**Agent:** Orchestrator (process gap)
+**File:** Process — no security review existed before Sprint 4
+**Issue:** The project had security-critical rules documented in AGENTS.md (Rules 34, 45, 55-56, 78-83, 97) but ZERO security validation was performed during Sprint 0-3 validation gates. The security audit in Sprint 4 found 8 failures including 3 critical issues (M-025, M-026, M-027) that should have been caught during schema design (Sprint 0) and API implementation (Sprint 1). If the project had shipped with these issues, attackers could:
+- Use API keys forever (no revocation — M-025)
+- Access other users' data across workspaces (no RLS — M-026)
+- Forge webhook payloads (plaintext secrets — M-027)
+
+**Fix:** Added a security checklist to the Mistake Prevention Protocol (below). Future projects should include a security review as a gate in EVERY sprint, not just the final QA sprint.
+
+**Lesson:** Security is NOT a sprint 4 activity. Security validation must be part of EVERY sprint gate:
+- Sprint 0 gate: Verify schema-level security (RLS, revokedAt, encryption)
+- Sprint 1 gate: Verify API-level security (RBAC, rate limiting, session expiry)
+- Sprint 2-3 gates: Verify UI-level security (CSP headers, XSS prevention)
+- Sprint 4: Final penetration test + audit (catch what earlier gates missed)
+
+---
+
+## M-033: (Template — fill as new mistakes occur)
 
 **Agent:** TBD
 **File:** TBD
@@ -331,12 +451,26 @@ The `extends` field only chains ONE level — it doesn't cascade through multipl
    - `types: ["node"]` if referencing Node.js globals (M-005)
    - Proper `paths` for all `@novacal/*` imports (M-002, M-022)
    - Correct `rootDir` or `noEmit` for cross-package imports (M-011)
+   - Exclude `__tests__` directories (M-031)
 4. **package.json checklist (EVERY app/package must have):**
    - ALL runtime dependencies declared (no relying on hoisting) (M-009, M-024)
    - `@types/*` only for packages that don't bundle their own types (M-001)
-5. **During validation gate:** Specifically check for:
+   - `vitest` as devDependency before any test files are created (M-031)
+5. **Schema/database checklist (EVERY table with auth data MUST have):**
+   - `revokedAt` or equivalent revocation mechanism (M-025)
+   - RLS policies enabled — EVERY user-scoped table (M-026)
+   - Encryption strategy for any `secret`/`password`/`token` column (M-027)
+6. **Security checklist (MUST verify in EVERY sprint gate):**
+   - Sprint 0: Schema security (RLS, revocation, encryption)
+   - Sprint 1: API security (RBAC enforcement, rate limiting, session expiry)
+   - Sprint 2-3: UI/Web security (CSP headers, XSS protection)
+   - Sprint 4: Penetration test + audit (M-032)
+7. **During validation gate:** Specifically check for:
    - Recurrence of known mistakes (especially M-006 recurring as M-010)
    - Spurious directories in API routes (M-020)
    - Correct route group naming (M-021)
    - Missing config files (M-015 through M-019)
-6. **After each sprint:** Add any new mistakes discovered during validation to this file within the same commit
+   - Security headers on every HTTP service (M-028)
+   - Rate limiting on every route group (M-029)
+   - Session expiry checks on every auth validation (M-030)
+8. **After each sprint:** Add any new mistakes discovered during validation to this file within the same commit
