@@ -22,5 +22,15 @@
     "@types/node": "latest",
     "bun-types": "latest"
   },
-  "packageManager": "bun"
+  "packageManager": "bun",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "autoprefixer": "^10.5.0",
+    "eslint": "^10.3.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.3.0",
+    "typescript-eslint": "^8.59.2"
+  }
 }
