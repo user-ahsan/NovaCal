@@ -103,6 +103,16 @@ export {
   TooltipProvider,
 } from "./tooltip"
 
+// Card
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "./card"
+
 // Command
 export {
   Command,

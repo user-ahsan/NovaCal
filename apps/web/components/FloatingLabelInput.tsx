@@ -15,6 +15,14 @@ interface FloatingLabelInputProps {
   className?: string;
   placeholder?: string;
   multiline?: boolean;
+  /** Input type, e.g. "text", "email", "password". Defaults to "text". */
+  type?: string;
+  /** HTML name attribute for form access. */
+  name?: string;
+  /** HTML autoComplete hint. */
+  autoComplete?: string;
+  /** Whether the field is required. */
+  required?: boolean;
 }
 
 // ─── Variants ───
@@ -53,6 +61,10 @@ export function FloatingLabelInput({
   className,
   placeholder,
   multiline = false,
+  type = "text",
+  name,
+  autoComplete,
+  required = false,
 }: FloatingLabelInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const inputId = useId();
@@ -92,6 +104,10 @@ export function FloatingLabelInput({
       {/* Input — borderless, transparent */}
       <InputComponent
         id={inputId}
+        type={multiline ? undefined : type}
+        name={name}
+        autoComplete={autoComplete}
+        required={required}
         value={value}
         onChange={handleChange}
         onFocus={() => setIsFocused(true)}

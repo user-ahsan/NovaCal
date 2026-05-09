@@ -1,0 +1,204 @@
+/* ═══════════════════════════════════════════════════════════════
+   NovaCal — Global CSS
+   Source: docs/06-design-specification.md §1 (Design Language System)
+   
+   Dark-mode-first theme with OLED black background, surface depth
+   architecture, glassmorphism tokens, and custom scrollbars.
+   
+   IMPORTANT: shadcn/ui components get `transition-none` to prevent
+   CSS transitions conflicting with Framer Motion spring animations.
+   ═══════════════════════════════════════════════════════════════ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Inter Font Import ─── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ─── CSS Custom Properties (Design Tokens) ─── */
+:root {
+  /* Background & Surface Depth Architecture
+     Depth 0: App background (OLED)
+     Depth 1: Sidebar, secondary panels
+     Depth 2: Cards, event blocks, dropdowns
+     Depth 3: Modals, sheets, hover states */
+  --background: #000000;
+  --surface: #09090B;
+  --surface-elevated: #121214;
+  --surface-hover: #18181B;
+
+  /* Accent Colors */
+  --primary-accent: #6366F1;
+  --primary-accent-muted: rgba(99, 102, 241, 0.15);
+  --primary-accent-glow: rgba(99, 102, 241, 0.3);
+
+  /* Borders — 1px inner border for depth without harsh drop shadows */
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-elevated: rgba(255, 255, 255, 0.05);
+
+  /* Ghost (hover/active) states */
+  --ghost-hover: rgba(255, 255, 255, 0.05);
+  --ghost-active: rgba(255, 255, 255, 0.1);
+
+  /* Text Hierarchy */
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-muted: #52525B;
+
+  /* Semantic Colors */
+  --destructive: #EF4444;
+  --success: #22C55E;
+  --warning: #F59E0B;
+
+  /* Typography */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Border Radius */
+  --radius-base: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-modal: 0 20px 60px rgba(0, 0, 0, 0.5), 0 8px 20px rgba(0, 0, 0, 0.3);
+
+  /* Transition constants (Framer Motion handles spring physics) */
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+}
+
+/* ─── Base Styles ─── */
+html {
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── shadcn/ui: Disable CSS transitions ───
+     All animations use Framer Motion spring physics instead.
+     AGENTS.md Rule 63: shadcn/ui components get transition-none class. */
+[class*="shadcn"],
+[data-radix-popper-content-wrapper],
+[data-radix-dropdown-menu-content],
+[data-radix-dialog-content],
+[data-radix-popover-content],
+[data-radix-select-content],
+[data-radix-tooltip-content] {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ─── Custom Thin Scrollbar ───
+     Edge-to-edge canvas requires scrollbars that are invisible
+     until hovered. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: var(--primary-accent-muted);
+  color: var(--text-primary);
+}
+
+/* ─── Focus Visible ─── */
+:focus-visible {
+  outline: 2px solid var(--primary-accent);
+  outline-offset: 2px;
+}
+
+/* ─── Anchor Resets ─── */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ─── Button Reset ─── */
+button {
+  font-family: inherit;
+}
+
+/* ─── Input Reset ─── */
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
+/* ─── Keyframe: Shimmer for Skeleton Loaders ─── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-elevated) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ─── Glassmorphism Utilities ─── */
+.glass-panel {
+  background: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-elevated);
+}
+
+.glass-modal {
+  background: rgba(18, 18, 20, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-elevated);
+}
+
+.glass-heavy {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ─── Utility: transition-none for Framer Motion integration ─── */
+.transition-none {
+  transition: none !important;
+}
