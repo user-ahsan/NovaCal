@@ -1,1 +1,21 @@
-{"name":"@novacal/realtime","private":true,"version":"0.0.0","type":"module"}
+{
+  "name": "@novacal/realtime",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "express": "latest",
+    "ws": "latest",
+    "ioredis": "latest",
+    "@novacal/db": "workspace:*",
+    "@novacal/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/express": "latest",
+    "@types/ws": "latest",
+    "@types/node": "latest"
+  }
+}

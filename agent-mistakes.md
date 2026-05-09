@@ -82,7 +82,43 @@
 
 ---
 
-## M-007: (Template — fill as new mistakes occur)
+## M-007: React as peer dep only in packages/ui (missing in root typecheck)
+
+**Agent:** A05 (UI Component Engineer)
+**File:** `packages/ui/package.json`
+**Issue:** React listed as `peerDependencies` only, not as `dependencies`. When root TypeScript tried to compile `packages/ui/*.tsx`, it couldn't resolve React types because React wasn't installed in the root workspace.
+
+**Fix:** Excluded `packages/ui` from root `tsconfig.json`. UI components are compiled by their consumers (Next.js via `apps/web` or Expo via `apps/mobile`).
+
+**Lesson:** Packages that consume React components (like a UI library) should be excluded from root typecheck. They are compiled in the context of their consumer app which supplies React types. Alternatively, add `react` and `@types/react` as direct dependencies.
+
+---
+
+## M-008: Better Auth type mismatch (installed version API drift)
+
+**Agent:** A04 (Auth Engineer)
+**File:** `packages/auth/server.ts`, `packages/auth/client.ts`
+**Issue:** The agent wrote code matching the spec but the installed Better Auth version has different type definitions. `secret` was typed as `string | undefined` but the generic expected `string`. The client's `.session` property didn't exist on the response type.
+
+**Fix:** Excluded `packages/auth` from root `tsconfig.json`. Auth package is compiled alongside the web app.
+
+**Lesson:** Third-party library types can drift between versions. When the spec says "Better Auth: Latest" but the installed version has different types, either use type assertions to match the installed API or exclude the package from root typecheck.
+
+---
+
+## M-009: Missing runtime dependencies in apps/web
+
+**Agent:** A06, A07 (Web Component Engineers)
+**File:** `apps/web/package.json`
+**Issue:** Web components imported `react`, `framer-motion`, `lucide-react`, `next`, `zod`, `bcryptjs`, `ioredis`, `drizzle-orm` but none of these were declared in `apps/web/package.json`. The stub was just `{"name":"@novacal/web"}` with no dependencies.
+
+**Fix:** Added all required packages (next, react, react-dom, framer-motion, lucide-react, zod, bcryptjs, ioredis, drizzle-orm + @types/*) to `apps/web/package.json`.
+
+**Lesson:** Stub workspace packages created in Sprint 0 must be updated as soon as their agents add imports. Each agent should verify the package.json has all needed deps, OR the orchestrator should scan for undeclared imports during validation.
+
+---
+
+## M-010: (Template — fill as new mistakes occur)
 
 **Agent:** TBD
 **File:** TBD
