@@ -9,7 +9,7 @@
 
 import type { Request } from "express";
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { db } from "@novacal/db";
 import { apiKeys, workspaceMembers } from "@novacal/db/schema";
 
@@ -46,12 +46,12 @@ export async function authenticateRequest(
 
   const token = authHeader.slice(7); // Strip "Bearer "
 
-  // Look up API key by hashed token
+  // Look up API key by hashed token — must exist AND not be revoked
   const keyRecord = await db.query.apiKeys.findFirst({
     where: eq(apiKeys.keyHash, hashToken(token)),
   });
 
-  if (!keyRecord) {
+  if (!keyRecord || keyRecord.revokedAt) {
     return null;
   }
 

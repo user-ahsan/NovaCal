@@ -115,7 +115,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
   id            uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id       uuid         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name          varchar(100) NOT NULL,  -- e.g., "Cursor MCP Integration"
-  key_hash      text         NOT NULL UNIQUE, -- bcrypt hash — never store raw
+  key_hash      text         NOT NULL UNIQUE, -- sha256 hash (deterministic for UNIQUE lookup)
+  revoked_at    timestamptz,                  -- If set, key is invalidated
   last_used_at  timestamptz,
   created_at    timestamptz  NOT NULL DEFAULT now()
 );
