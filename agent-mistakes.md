@@ -533,7 +533,122 @@ Tests that can't compile are worse than no tests — they add noise and break CI
 
 ---
 
-## M-040: (Template — fill as new mistakes occur)
+## M-040: Dockerfile used BuildKit-specific syntax without enabling BuildKit
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `docker/Dockerfile`
+**Issue:** Used `RUN --mount=type=cache,target=/root/.bun` which is BuildKit-specific syntax. This requires either `# syntax=docker/dockerfile:1` directive at the top of the Dockerfile or `DOCKER_BUILDKIT=1` environment variable. Without these, Docker uses the legacy builder which doesn't understand `--mount` and throws "Dockerfile parse error" or silently ignores the cache mount, making it dead code.
+
+**Fix:** Removed the BuildKit cache mount entirely. Standard `COPY` layer caching (dependency manifests copied before source code) is sufficient for this project's build speed.
+
+**Lesson:** Never use `--mount=type=cache` or other BuildKit-specific syntax without adding `# syntax=docker/dockerfile:1` as the FIRST LINE of the Dockerfile. Without it, the builder falls back to legacy mode which doesn't support these features. For Dokploy and standard Docker Compose deployments, stick with COPY-based layer caching unless you explicitly configure BuildKit.
+
+---
+
+## M-041: `bun install --production` breaks monorepo workspace linking
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `docker/Dockerfile` (line 35)
+**Issue:** Used `RUN bun install --frozen-lockfile --production` in the deps stage. In a Bun monorepo, `--production` skips installing `devDependencies` in ALL packages, but it ALSO breaks workspace link resolution. Runtime packages like `drizzle-orm` and `better-auth` need their own deps which are listed as devDependencies in some workspace packages. Without them, workspace packages can't resolve their imports at build time.
+
+**Fix:** Removed `--production` flag. Monorepo installs should use plain `bun install --frozen-lockfile`. For production image size optimization, rely on multi-stage builds (copy only node_modules to the slim runner stage) rather than `--production`.
+
+**Lesson:** The `--production` flag is DANGEROUS in monorepos. It doesn't just exclude devDependencies — it breaks the workspace protocol linking mechanism. NEVER use `bun install --production` in a workspace monorepo. Use multi-stage builds to slim the final image instead.
+
+---
+
+## M-042: Dockerfile had orphan build stage never consumed by downstream stages
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `docker/Dockerfile` (stage 2 — `FROM deps AS build-packages`)
+**Issue:** Created a `build-packages` stage (`FROM deps AS build-packages`) that was NEVER referenced by `COPY --from=build-packages` in any downstream stage. This stage ran typecheck on shared packages but the result was thrown away. The `build` stage pulled directly from `deps` instead, making the entire `build-packages` stage dead weight — it added build time without contributing to the final image.
+
+**Fix:** Removed the entire `build-packages` stage. The `build` stage now pulls directly from `deps` and handles both compilation and typechecking.
+
+**Lesson:** Every Dockerfile stage must either be consumed by `COPY --from=<stage>` in a downstream stage OR be the final stage. Orphan stages waste build time and confuse readers. Count your stages: if stage N has no consumer, it's dead code. The pattern should be: `deps → build → runner` (3 stages) or `deps → runner` (2 stages), never `deps → useless → build → runner`.
+
+---
+
+## M-043: Dockerfile CMD used wrong path for Next.js standalone server
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `docker/Dockerfile` (line 120 originally)
+**Issue:** Set `CMD ["node", "apps/web/server.js"]` but Next.js standalone output places `server.js` at the ROOT of the standalone directory. When `COPY --from=build /app/apps/web/.next/standalone ./` copies contents to `WORKDIR /app`, the server ends up at `/app/server.js`, not `/app/apps/web/server.js`. This caused the container to crash immediately on startup with "cannot find module" error.
+
+**Fix:** Changed to `CMD ["node", "server.js"]`.
+
+**Lesson:** Next.js standalone output structure:
+```
+.next/standalone/
+├── server.js          ← Entry point (at root)
+├── package.json
+└── apps/web/
+    ├── .next/
+    └── public/
+```
+When copied to WORKDIR root, `server.js` IS at the root. The path `apps/web/server.js` only exists in monorepos with multiple apps. Always verify the actual file structure in `.next/standalone/` after build. Test the Dockerfile with `docker build` and `docker run` before committing.
+
+---
+
+## M-044: Dockerfile had dead code (Prisma reference + redundant install)
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `docker/Dockerfile` (lines 103 + 106 originally)
+**Issue:** Two instances of dead code in the production stage:
+1. `COPY ... /app/node_modules/.prisma ./node_modules/.prisma 2>/dev/null || true` — There is no Prisma in this project. The ORM is Drizzle, not Prisma. This line was silently failing and producing an error message that was swallowed by `2>/dev/null || true`.
+2. `RUN bun install --frozen-lockfile --production --cwd apps/web 2>/dev/null; exit 0` — Redundant install after node_modules was already copied from the build stage. This adds ~30s to build time for zero benefit.
+
+**Fix:** Removed both lines. The production stage now only copies what's needed from the build stage, with no redundant operations.
+
+**Lesson:** Dead code in Dockerfiles is particularly harmful because:
+1. It wastes build time (each RUN layer is cached but still takes space)
+2. Silent error suppression (`2>/dev/null; exit 0`) hides real failures
+3. Copying non-existent paths adds error-prone complexity
+4. After every refactor, audit the Dockerfile for references to removed packages, renamed files, or unnecessary steps
+
+---
+
+## M-045: Next.js config missing `output: "standalone"` for Docker deployment
+
+**Agent:** A15 (Dashboard Engineer)
+**File:** `apps/web/next.config.ts`
+**Issue:** The Next.js configuration did not have `output: "standalone"`. Without this, `next build` produces the entire `node_modules` tree in `.next/`, making Docker images ~800MB+ and the `COPY` in the Dockerfile's runner stage was copying from non-existent path `/app/apps/web/.next/standalone/`. The Dockerfile referenced standalone output that didn't exist.
+
+**Fix:** Added `output: "standalone"` to `next.config.ts`. This enables Next.js standalone output mode, which creates a minimal self-contained server in `.next/standalone/` with only the production-required `node_modules`.
+
+**Lesson:** Any Dockerized Next.js app MUST have `output: "standalone"` in `next.config.ts`. Without it:
+- Docker images are 3-5x larger (bundled node_modules)
+- The `.next/standalone/` path doesn't exist (Dockerfile COPY fails)
+- Build times are longer
+Always verify that `next build` actually produces `.next/standalone/` before writing Dockerfile COPY commands for it.
+
+---
+
+## M-046: `.env.example` missing `DATABASE_PASSWORD` variable referenced by compose.yml
+
+**Agent:** Orchestrator (Docker revamp)
+**File:** `.env.example`
+**Issue:** The `docker/compose.yml` references `${DATABASE_PASSWORD:-password}` for the PostgreSQL container's `POSTGRES_PASSWORD`, but `.env.example` did NOT include `DATABASE_PASSWORD`. Users copying `.env.example` to `.env` would get a working web app but the database container would use the hardcoded default "password" with no way to change it via the env file.
+
+**Fix:** Added `DATABASE_PASSWORD=password` to `.env.example` with a comment explaining it's used by compose.yml for the postgres container.
+
+**Lesson:** Every environment variable referenced in `docker-compose.yml` (or any deployment config) MUST be documented in `.env.example`. The pattern: search for `${VAR_NAME}` in compose files, verify each has a corresponding entry in `.env.example`. Missing env vars are a common source of production configuration drift.
+
+---
+
+## M-047: Docker scripts in package.json not updated after compose file was moved
+
+**Agent:** Orchestrator (Sprint 0)
+**File:** `package.json` (docker scripts)
+**Issue:** The `docker/compose.yml` file exists at `docker/compose.yml` (not root `compose.yml`), but the initial scripts in `package.json` ran `docker compose -f docker/compose.yml ...` — this was correct. However, when the compose file was later rewritten, the scripts were still pointing to the correct path. The real issue was that scripts like `docker:ps` and `docker:clean` didn't exist, and `docker:restart` was missing — users had to remember the full `docker compose -f docker/compose.yml restart` command.
+
+**Fix:** Added `docker:restart`, `docker:ps`, and `docker:clean` scripts alongside the existing ones. All use the correct `-f docker/compose.yml` path.
+
+**Lesson:** When the project structure changes (files moved, renamed, restructured), audit ALL scripts in `package.json` that reference the old paths. Every `docker compose` script must explicitly use `-f docker/compose.yml` if the compose file isn't at the project root. Scripts should be comprehensive enough that users never need to remember the exact path — `bun run docker:restart` is easier than `docker compose -f docker/compose.yml restart`.
+
+---
+
+## M-048: (Template — fill as new mistakes occur)
 
 **Agent:** TBD
 **File:** TBD
@@ -566,7 +681,16 @@ Tests that can't compile are worse than no tests — they add noise and break CI
    - Sprint 1: API security (RBAC enforcement, rate limiting, session expiry)
    - Sprint 2-3: UI/Web security (CSP headers, XSS protection)
    - Sprint 4: Penetration test + audit (M-032)
-7. **During validation gate:** Specifically check for:
+7. **Dockerfile checklist (EVERY Dockerfile MUST verify):**
+   - No BuildKit-specific syntax without `# syntax` directive (M-040)
+   - No `bun install --production` in monorepos — use multi-stage for size (M-041)
+   - No orphan stages — every stage must have a consumer (M-042)
+   - CMD paths match actual output structure (test with `docker build`) (M-043)
+   - No dead code — Prisma refs, redundant installs, swallowed errors (M-044)
+   - Next.js has `output: "standalone"` in config (M-045)
+   - Every `${VAR}` in compose.yml has matching entry in `.env.example` (M-046)
+   - All scripts in package.json use correct `-f docker/compose.yml` path (M-047)
+8. **During validation gate:** Specifically check for:
    - Recurrence of known mistakes (especially M-006 recurring as M-010)
    - Spurious directories in API routes (M-020)
    - Correct route group naming (M-021)
@@ -574,4 +698,5 @@ Tests that can't compile are worse than no tests — they add noise and break CI
    - Security headers on every HTTP service (M-028)
    - Rate limiting on every route group (M-029)
    - Session expiry checks on every auth validation (M-030)
-8. **After each sprint:** Add any new mistakes discovered during validation to this file within the same commit
+   - Dockerfile correctness — build locally when changes are made (M-040–M-047)
+9. **After each sprint:** Add any new mistakes discovered during validation to this file within the same commit
