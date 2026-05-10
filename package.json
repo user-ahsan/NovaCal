@@ -32,6 +32,9 @@
     "docker:down": "docker compose -f docker/compose.yml down",
     "docker:logs": "docker compose -f docker/compose.yml logs -f",
     "docker:rebuild": "docker compose -f docker/compose.yml up -d --build",
+    "docker:restart": "docker compose -f docker/compose.yml restart",
+    "docker:ps": "docker compose -f docker/compose.yml ps",
+    "docker:clean": "docker compose -f docker/compose.yml down -v",
     "setup": "bun install && bun run db:generate && bun run db:push",
     "clean": "rm -rf node_modules bun.lock apps/web/.next packages/*/dist"
   },
